@@ -76,7 +76,96 @@ pub fn recalculate_simulation(settings: settings::Settings, sender: mpsc::Sender
             println!("Error sending new point: {err}\nPoint: {:?}", point);
         }
     }
+    if let Err(err) = sender.send(message_passers::Message::NewStage(message_passers::CalculationStage::Plots)) {
+        println!("Error sending new stage (plots): {err}");
+    }
+    if let Err(err) = generate_image(data, settings) {
+        println!("Failed to generate the plot: {err}");
+    }
     if let Err(err) = sender.send(message_passers::Message::NewStage(message_passers::CalculationStage::End)) {
         println!("Error sending new stage (end): {err}");
     }
+}
+
+fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> Result<(), Box<dyn std::error::Error>> {
+    use plotters::prelude::*;
+
+    let out_file_name = "plotters-doc-data/3d-plot.svg";
+
+    let area = SVGBackend::new(out_file_name, (1024, 760)).into_drawing_area();
+
+    area.fill(&WHITE)?;
+
+    let x_axis = (-(settings.planet_radius * 1.1)..(settings.planet_radius * 1.1)).step(settings.planet_radius * 1.1 / 100.0);
+    let z_axis = (-(settings.planet_radius * 1.1)..(settings.planet_radius * 1.1)).step(settings.planet_radius * 1.1 / 100.0);
+
+    let mut chart = ChartBuilder::on(&area).caption("3D Plot Test".to_string(), ("sans", 20)).build_cartesian_3d(
+        x_axis.clone(),
+        -(settings.planet_radius * 1.1)..(settings.planet_radius * 1.1),
+        z_axis.clone(),
+    )?;
+
+    chart.with_projection(|mut pb| {
+        pb.yaw = 0.5;
+        pb.scale = 0.9;
+        pb.into_matrix()
+    });
+
+    chart.configure_axes().light_grid_style(BLACK.mix(0.15)).max_light_lines(3).draw()?;
+
+    chart
+        .draw_series(
+            SurfaceSeries::xoz(
+                (-100..100).map(|f| f as f64 / 100.0 * (settings.planet_radius * 1.1)),
+                (-100..100).map(|f| f as f64 / 100.0 * (settings.planet_radius * 1.1)),
+                |x, z| {
+                    let y_2 = settings.planet_radius * settings.planet_radius - (x * x + z * z);
+                    if y_2 < 0.0 {
+                        0.0
+                    } else {
+                        y_2.sqrt()
+                    }
+                },
+            )
+            .style(BLUE.mix(0.2).filled()),
+        )?
+        .label("Surface")
+        .legend(|(x, y)| Rectangle::new([(x + 5, y - 5), (x + 15, y + 5)], BLUE.mix(0.5).filled()));
+
+    chart
+        .draw_series(
+            SurfaceSeries::xoz(
+                (-100..100).map(|f| f as f64 / 100.0 * (settings.planet_radius * 1.1)),
+                (-100..100).map(|f| f as f64 / 100.0 * (settings.planet_radius * 1.1)),
+                |x, z| {
+                    let y_2 = settings.planet_radius * settings.planet_radius - (x * x + z * z);
+                    if y_2 < 0.0 {
+                        0.0
+                    } else {
+                        -y_2.sqrt()
+                    }
+                },
+            )
+            .style(BLUE.mix(0.2).filled()),
+        )?
+        .label("Surface")
+        .legend(|(x, y)| Rectangle::new([(x + 5, y - 5), (x + 15, y + 5)], BLUE.mix(0.5).filled()));
+
+    chart
+        .draw_series(LineSeries::new(
+            (-100..100)
+                .map(|y| y as f64 / 100.0 * (settings.planet_radius * 1.1))
+                .map(|y| ((settings.planet_radius * 1.1) * (y * 10.0).sin(), y, (settings.planet_radius * 1.1) * (y * 10.0).cos())),
+            &BLACK,
+        ))?
+        .label("Line")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
+
+    chart.configure_series_labels().border_style(BLACK).draw()?;
+
+    // To avoid the IO failure being ignored silently, we manually call the present function
+    area.present()
+        .expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
+    println!("Result has been saved to {}", out_file_name);
+    Ok(())
 }
