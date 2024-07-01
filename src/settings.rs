@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 pub struct Settings {
     pub recalculate_on_change: bool,
 

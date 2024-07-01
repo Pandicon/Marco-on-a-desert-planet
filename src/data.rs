@@ -1,6 +1,6 @@
 use nalgebra::Vector3;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Data {
     pub latitude: f64,
     pub longitude: f64,

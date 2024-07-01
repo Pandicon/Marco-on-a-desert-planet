@@ -1,10 +1,6 @@
-use std::f64::consts::PI;
-
-use nalgebra::Vector3;
-
 use eframe::egui;
 
-use crate::{data, settings};
+use crate::{data, message_passers, settings, simulator};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum WindowToShow {
@@ -14,9 +10,12 @@ pub enum WindowToShow {
 
 pub struct Application {
     window_to_show: WindowToShow,
+    pub calculation_stage: message_passers::CalculationStage,
     pub data: Vec<data::Data>,
     pub windows_opened: WindowsOpened,
     pub settings: settings::Settings,
+
+    pub message_passers: message_passers::MessagePassers,
 }
 
 impl Application {
@@ -25,15 +24,24 @@ impl Application {
 
         Self {
             window_to_show: WindowToShow::LatitudeVsTimeGraph,
+            calculation_stage: message_passers::CalculationStage::End,
             data: Vec::new(),
             windows_opened: WindowsOpened::default(),
             settings: settings::Settings::default(),
+
+            message_passers: message_passers::MessagePassers::default(),
         }
     }
 }
 
 impl eframe::App for Application {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        while let Ok(data) = self.message_passers.calculator_to_main_receiver.try_recv() {
+            match data {
+                message_passers::Message::NewPoint(point) => self.data.push(point),
+                message_passers::Message::NewStage(stage) => self.calculation_stage = stage,
+            }
+        }
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
@@ -41,8 +49,12 @@ impl eframe::App for Application {
                     ui.selectable_value(&mut self.window_to_show, WindowToShow::LongitudeVsTimeGraph, "Graph of longitude vs time");
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Recalculate").clicked() {
-                        self.recalculate();
+                    if self.calculation_stage == message_passers::CalculationStage::End {
+                        if ui.button("Recalculate").clicked() {
+                            self.recalculate();
+                        }
+                    } else {
+                        ui.add_enabled(false, egui::Button::new(self.calculation_stage.as_ref()));
                     }
                     if ui.button("Settings").clicked() {
                         self.windows_opened.settings = true;
@@ -61,40 +73,12 @@ impl eframe::App for Application {
 
 impl Application {
     pub fn recalculate(&mut self) {
-        let mut time = 0.0;
-        let start_lat = self.settings.start_lat as f64;
-        let start_lon = self.settings.start_lon as f64;
-        let axis_tilt = PI / 2.0 - self.settings.rotational_axis_tilt as f64;
-
-        let planet_rotation_axis = Vector3::new(axis_tilt.cos(), 0.0, axis_tilt.sin()).normalize();
-        let planet_rotation_quaternion = nalgebra::UnitQuaternion::new(planet_rotation_axis * (2.0 * PI) / (self.settings.rotational_period * 3600.0) * self.settings.timestep * (-1.0)); // Multiplied by -1 to make the star orbit the planet in the correct direction
-
-        let mut marco_pos = Vector3::new(start_lat.cos() * start_lon.cos(), start_lat.cos() * start_lon.sin(), start_lat.sin()) * self.settings.planet_radius;
-        let mut sun_pos_norm = Vector3::new(1.0_f64, 0.0, 0.0);
-
         self.data = Vec::new();
-        self.data.push(data::Data::from_raw(marco_pos, time, self.settings.planet_radius));
+        self.calculation_stage = message_passers::CalculationStage::Start;
 
-        while time <= self.settings.simulation_time {
-            let marco_to_sun = (self.settings.sun_distance * sun_pos_norm - marco_pos).normalize();
-
-            // Only move Marco when the star is above his horizon
-            if marco_to_sun.dot(&marco_pos) >= 0.0 {
-                let rotation_axis = (marco_pos.normalize().cross(&marco_to_sun)).normalize() * (self.settings.marco_velocity / 1000.0 * self.settings.timestep) / self.settings.planet_radius;
-                let rotation_quaternion = nalgebra::UnitQuaternion::new(rotation_axis);
-
-                marco_pos = rotation_quaternion * marco_pos;
-            }
-
-            sun_pos_norm = planet_rotation_quaternion * sun_pos_norm;
-
-            if time / self.settings.simulation_time > (self.data.len() as f64) / (self.settings.points_to_show as f64) {
-                self.data.push(data::Data::from_raw(marco_pos, time, self.settings.planet_radius));
-            }
-
-            time += self.settings.timestep;
-        }
-        self.data.push(data::Data::from_raw(marco_pos, time, self.settings.planet_radius));
+        let settings = self.settings.clone();
+        let sender = self.message_passers.calculator_to_main_sender.clone();
+        std::thread::spawn(move || simulator::recalculate_simulation(settings, sender));
     }
 }
 
