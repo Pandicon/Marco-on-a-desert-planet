@@ -11,7 +11,7 @@ impl application::Application {
 
         let y_fmt = |y: GridMark, _max_len: usize, _range: &RangeInclusive<f64>| format!("{:.3} deg", y.value);
 
-        let label_fmt = |_s: &str, val: &egui_plot::PlotPoint| format!("{:.3} s\n{:.3} deg", val.x, val.y);
+        let label_fmt = |_s: &str, val: &egui_plot::PlotPoint| format!("{:.9} s\n{:.9} deg", val.x, val.y);
 
         let plot = egui_plot::Plot::new("Longitude vs time relationship")
             // .data_aspect(1.0)
