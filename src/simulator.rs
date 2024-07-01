@@ -25,10 +25,13 @@ pub fn recalculate_simulation(settings: settings::Settings, sender: mpsc::Sender
 
     let mut marco_positions = vec![Vector3::new(start_lat.cos() * start_lon.cos(), start_lat.cos() * start_lon.sin(), start_lat.sin()) * settings.planet_radius; velocities_count];
     let mut sun_pos_norm = Vector3::new(1.0_f64, 0.0, 0.0);
+    let red = hsluv::rgb_to_hsluv(1.0, 0.0, 0.0);
+    let blue = hsluv::rgb_to_hsluv(0.0, 0.0, 1.0);
     let colours = (0..velocities_count)
         .map(|i| {
             let vel_i = i as f32;
-            eframe::egui::Color32::from(eframe::egui::ecolor::Hsva::new(vel_i / vels_count as f32, 1.0, 1.0, (1.0 / vels_count as f32).max(0.1)))
+            let rgb = hsluv::hsluv_to_rgb(red.0 + (blue.0 - red.0) * (vel_i / vels_count as f32) as f64, red.1, red.2);
+            eframe::egui::Color32::from_rgba_unmultiplied((rgb.0 * 255.0) as u8, (rgb.1 * 255.0) as u8, (rgb.2 * 255.0) as u8, ((1.0 / vels_count as f32).max(1.0) * 255.0) as u8)
         })
         .collect::<Vec<eframe::egui::Color32>>();
 

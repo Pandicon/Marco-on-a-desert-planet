@@ -1553,6 +1553,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hsluv"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e863ce683d91415fa6ca1864c9de1c886277ab4f56c49cd06f301d6230cb6b2"
+dependencies = [
+ "json",
+ "num-traits",
+]
+
+[[package]]
 name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1669,6 +1679,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "json"
+version = "0.11.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92c245af8786f6ac35f95ca14feca9119e71339aaab41e878e7cdd655c97e9e5"
+
+[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1772,6 +1788,7 @@ dependencies = [
  "eframe",
  "egui_plot",
  "env_logger",
+ "hsluv",
  "nalgebra",
 ]
 
