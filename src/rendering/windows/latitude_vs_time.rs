@@ -20,13 +20,24 @@ impl application::Application {
             .label_formatter(label_fmt)
             .legend(egui_plot::Legend::default());
 
-        let points_raw = self.data.clone().into_iter().map(|point| [point.time, point.latitude]).collect::<Vec<[f64; 2]>>();
-        let points = egui_plot::Points::new(points_raw.clone()).color(egui::Color32::RED).highlight(true);
-        let lines = egui_plot::Line::new(egui_plot::PlotPoints::new(points_raw)).color(egui::Color32::RED).highlight(true);
+        let mut all_points = Vec::new();
+        let mut all_lines = Vec::new();
+
+        for (colour, points_sequence) in self.data.iter() {
+            let points_raw = points_sequence.clone().into_iter().map(|point| [point.time, point.latitude]).collect::<Vec<[f64; 2]>>();
+            let points = egui_plot::Points::new(points_raw.clone()).color(*colour).highlight(true);
+            let lines = egui_plot::Line::new(egui_plot::PlotPoints::new(points_raw)).color(*colour).highlight(true);
+            all_points.push(points);
+            all_lines.push(lines);
+        }
 
         plot.show(ui, |plot_ui| {
-            plot_ui.line(lines);
-            plot_ui.points(points);
+            for lines in all_lines {
+                plot_ui.line(lines);
+            }
+            for points in all_points {
+                plot_ui.points(points);
+            }
         });
     }
 }

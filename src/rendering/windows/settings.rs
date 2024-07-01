@@ -13,8 +13,17 @@ impl application::Application {
 			ui.separator();
 			ui.heading("Marco parameters");
 			ui.horizontal(|ui| {
-				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.marco_velocity).speed(0.01)).changed();
-				ui.label("Marco's velocity (m/s)");
+				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.marco_min_velocity).speed(0.01)).changed();
+				ui.label("Marco's minimum velocity (m/s)");
+			});
+			ui.horizontal(|ui| {
+				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.marco_max_velocity).speed(0.01)).changed();
+				ui.label("Marco's maximum velocity (m/s)");
+			});
+			ui.horizontal(|ui| {
+				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.velocities_count).speed(0.1)).changed();
+				self.settings.velocities_count = self.settings.velocities_count.max(1);
+				ui.label("Marco's velocities to simulate (count)");
 			});
 			ui.horizontal(|ui| {
 				anything_changed |= ui.drag_angle(&mut self.settings.start_lat).changed();
@@ -62,7 +71,7 @@ impl application::Application {
 			});
 			ui.horizontal(|ui| {
 				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.points_to_show)).changed();
-				ui.label("Number of points to show in the graph (approximate value, usually ± 1)");
+				ui.label("Number of points to show in the graph per simulated velocity (approximate value, usually ± 1)");
 			});
 			if self.settings.recalculate_on_change && anything_changed {
 				self.recalculate();

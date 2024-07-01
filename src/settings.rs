@@ -2,7 +2,9 @@
 pub struct Settings {
     pub recalculate_on_change: bool,
 
-    pub marco_velocity: f64,
+    pub marco_min_velocity: f64,
+    pub marco_max_velocity: f64,
+    pub velocities_count: usize,
     pub start_lat: f32,
     pub start_lon: f32,
 
@@ -22,9 +24,11 @@ impl Default for Settings {
         Self {
             recalculate_on_change: false,
 
-            marco_velocity: 5.0 / 3.6,
+            marco_min_velocity: 0.5 / 3.6,
+            marco_max_velocity: 15.0 / 3.6,
+            velocities_count: 1,
             start_lat: 89.7_f32.to_radians(),
-            start_lon: -50.0_f32.to_radians(),
+            start_lon: -90.0_f32.to_radians(),
 
             planet_radius: 6000.0,
             rotational_axis_tilt: 0.0_f32.to_radians(),

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use eframe::egui;
 
 use crate::{data, message_passers, settings, simulator};
@@ -11,7 +13,7 @@ pub enum WindowToShow {
 pub struct Application {
     window_to_show: WindowToShow,
     pub calculation_stage: message_passers::CalculationStage,
-    pub data: Vec<data::Data>,
+    pub data: HashMap<egui::Color32, Vec<data::Data>>,
     pub windows_opened: WindowsOpened,
     pub settings: settings::Settings,
 
@@ -25,7 +27,7 @@ impl Application {
         Self {
             window_to_show: WindowToShow::LatitudeVsTimeGraph,
             calculation_stage: message_passers::CalculationStage::End,
-            data: Vec::new(),
+            data: HashMap::new(),
             windows_opened: WindowsOpened::default(),
             settings: settings::Settings::default(),
 
@@ -38,7 +40,10 @@ impl eframe::App for Application {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         while let Ok(data) = self.message_passers.calculator_to_main_receiver.try_recv() {
             match data {
-                message_passers::Message::NewPoint(point) => self.data.push(point),
+                message_passers::Message::NewPoint(point) => {
+                    let entry = self.data.entry(point.colour).or_default();
+                    entry.push(point);
+                }
                 message_passers::Message::NewStage(stage) => self.calculation_stage = stage,
             }
         }
@@ -73,7 +78,7 @@ impl eframe::App for Application {
 
 impl Application {
     pub fn recalculate(&mut self) {
-        self.data = Vec::new();
+        self.data = HashMap::new();
         self.calculation_stage = message_passers::CalculationStage::Start;
 
         let settings = self.settings.clone();
