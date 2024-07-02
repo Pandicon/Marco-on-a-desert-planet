@@ -104,11 +104,10 @@ fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> R
     let x_axis = (-(planet_radius * 1.1)..(planet_radius * 1.1)).step(planet_radius * 1.1 / 100.0);
     let z_axis = (-(planet_radius * 1.1)..(planet_radius * 1.1)).step(planet_radius * 1.1 / 100.0);
 
-    let mut chart = ChartBuilder::on(&area).caption("Marco on a desert planet".to_string(), (font, 20 * scale_factor)).build_cartesian_3d(
-        x_axis.clone(),
-        -(planet_radius * 1.1)..(planet_radius * 1.1),
-        z_axis.clone(),
-    )?;
+    let mut chart =
+        ChartBuilder::on(&area)
+            .caption("Marco on a desert planet", (font, 20 * scale_factor))
+            .build_cartesian_3d(x_axis.clone(), -(planet_radius * 1.1)..(planet_radius * 1.1), z_axis.clone())?;
 
     chart.with_projection(|mut pb| {
         pb.yaw = 0.5 + std::f64::consts::PI;

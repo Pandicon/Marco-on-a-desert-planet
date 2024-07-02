@@ -97,7 +97,7 @@ impl Application {
         self.data = HashMap::new();
         self.calculation_stage = message_passers::CalculationStage::Start;
 
-        let settings = self.settings.clone();
+        let settings = self.settings;
         let sender = self.message_passers.calculator_to_main_sender.clone();
         std::thread::spawn(move || simulator::recalculate_simulation(settings, sender));
     }
