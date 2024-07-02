@@ -10,6 +10,7 @@ impl application::Application {
         egui::Window::new("Settings").open(&mut opened).show(ctx, |ui| {
 			let mut anything_changed = false;
             ui.checkbox(&mut self.settings.recalculate_on_change, "Recalculate on change").on_hover_text("If this option is enabled the simulation will be recalculated every time any of the parameters changes. Can be great for playing with starting values, but can be computationally expensive and therefore make the application run quite slow.");
+			anything_changed |= ui.checkbox(&mut self.settings.generate_image, "Generate the path image").on_hover_text("The image is really great for visualisation, but takes a while to generate which is not great when playing with the parameters.").changed();
 			ui.separator();
 			ui.heading("Marco parameters");
 			ui.horizontal(|ui| {
@@ -58,6 +59,10 @@ impl application::Application {
 				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.sun_distance)).changed();
 				self.settings.sun_distance = self.settings.sun_distance.max(10.0_f64.powi(-6));
 				ui.label("Semi-major axis (km)");
+			});
+			ui.horizontal(|ui| {
+				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.orbital_period).speed(0.01)).changed();
+				ui.label("Orbital period (years)");
 			});
 			ui.separator();
 			ui.heading("Simulation parameters");

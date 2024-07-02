@@ -20,11 +20,13 @@ pub fn recalculate_simulation(settings: settings::Settings, sender: mpsc::Sender
     let start_lon = settings.start_lon as f64;
     let axis_tilt = PI / 2.0 - settings.rotational_axis_tilt as f64;
 
-    let planet_rotation_axis = Vector3::new(axis_tilt.cos(), 0.0, axis_tilt.sin()).normalize();
+    let mut marco_positions = vec![Vector3::new(start_lat.cos() * start_lon.cos(), start_lat.cos() * start_lon.sin(), start_lat.sin()) * settings.planet_radius; velocities_count];
+    let mut sun_pos_norm = Vector3::new(axis_tilt.sin(), 0.0, axis_tilt.cos());
+
+    let mut ecliptic_axis = sun_pos_norm.cross(&Vector3::new(0.0, 1.0, 0.0)).normalize();
+    let planet_rotation_axis = Vector3::new(0.0, 0.0, 1.0).normalize();
     let planet_rotation_quaternion = nalgebra::UnitQuaternion::new(planet_rotation_axis * (2.0 * PI) / (settings.rotational_period * 3600.0) * settings.timestep * (-1.0)); // Multiplied by -1 to make the star orbit the planet in the correct direction
 
-    let mut marco_positions = vec![Vector3::new(start_lat.cos() * start_lon.cos(), start_lat.cos() * start_lon.sin(), start_lat.sin()) * settings.planet_radius; velocities_count];
-    let mut sun_pos_norm = Vector3::new(1.0_f64, 0.0, 0.0);
     let red = hsluv::rgb_to_hsluv(1.0, 0.0, 0.0);
     let blue = hsluv::rgb_to_hsluv(0.0, 0.0, 1.0);
     let colours = (0..velocities_count)
@@ -65,7 +67,12 @@ pub fn recalculate_simulation(settings: settings::Settings, sender: mpsc::Sender
             }
         }
 
+        // Everything that is not meant to be stationary with respect to the surface of the Earth has to be rotated in the opposite direction to the Earth if the surface of the Earth is to be stationary with respect to the coordinate system
         sun_pos_norm = planet_rotation_quaternion * sun_pos_norm;
+        ecliptic_axis = planet_rotation_quaternion * ecliptic_axis;
+
+        let planet_orbit_quaternion = nalgebra::UnitQuaternion::new(ecliptic_axis * (2.0 * PI) / (settings.orbital_period * 365.25 * 86400.0) * settings.timestep); // Here we should not multiply by -1 as the direction of orbit of the planet around the star and of the star around the planet are the same
+        sun_pos_norm = planet_orbit_quaternion * sun_pos_norm;
 
         time += settings.timestep;
     }
@@ -76,11 +83,13 @@ pub fn recalculate_simulation(settings: settings::Settings, sender: mpsc::Sender
             println!("Error sending new point: {err}\nPoint: {:?}", point);
         }
     }
-    if let Err(err) = sender.send(message_passers::Message::NewStage(message_passers::CalculationStage::Plots)) {
-        println!("Error sending new stage (plots): {err}");
-    }
-    if let Err(err) = generate_image(data, settings) {
-        println!("Failed to generate the plot: {err}");
+    if settings.generate_image {
+        if let Err(err) = sender.send(message_passers::Message::NewStage(message_passers::CalculationStage::Plots)) {
+            println!("Error sending new stage (plots): {err}");
+        }
+        if let Err(err) = generate_image(data, settings) {
+            println!("Failed to generate the plot: {err}");
+        }
     }
     if let Err(err) = sender.send(message_passers::Message::NewStage(message_passers::CalculationStage::End)) {
         println!("Error sending new stage (end): {err}");
