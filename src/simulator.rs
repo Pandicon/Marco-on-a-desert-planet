@@ -90,36 +90,79 @@ pub fn recalculate_simulation(settings: settings::Settings, sender: mpsc::Sender
 fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> Result<(), Box<dyn std::error::Error>> {
     use plotters::prelude::*;
 
-    let out_file_name = "plotters-doc-data/3d-plot.svg";
+    let scale_factor = 20;
+    let font = "sans";
 
-    let area = SVGBackend::new(out_file_name, (1024, 760)).into_drawing_area();
+    let planet_radius = settings.planet_radius;
+
+    let out_file_name = "plotters-doc-data/3d-plot.png";
+
+    let area = BitMapBackend::new(out_file_name, (1024 * scale_factor, 760 * scale_factor)).into_drawing_area();
 
     area.fill(&WHITE)?;
 
-    let x_axis = (-(settings.planet_radius * 1.1)..(settings.planet_radius * 1.1)).step(settings.planet_radius * 1.1 / 100.0);
-    let z_axis = (-(settings.planet_radius * 1.1)..(settings.planet_radius * 1.1)).step(settings.planet_radius * 1.1 / 100.0);
+    let x_axis = (-(planet_radius * 1.1)..(planet_radius * 1.1)).step(planet_radius * 1.1 / 100.0);
+    let z_axis = (-(planet_radius * 1.1)..(planet_radius * 1.1)).step(planet_radius * 1.1 / 100.0);
 
-    let mut chart = ChartBuilder::on(&area).caption("3D Plot Test".to_string(), ("sans", 20)).build_cartesian_3d(
+    let mut chart = ChartBuilder::on(&area).caption("Marco on a desert planet".to_string(), (font, 20 * scale_factor)).build_cartesian_3d(
         x_axis.clone(),
-        -(settings.planet_radius * 1.1)..(settings.planet_radius * 1.1),
+        -(planet_radius * 1.1)..(planet_radius * 1.1),
         z_axis.clone(),
     )?;
 
     chart.with_projection(|mut pb| {
-        pb.yaw = 0.5;
+        pb.yaw = 0.5 + std::f64::consts::PI;
         pb.scale = 0.9;
         pb.into_matrix()
     });
 
-    chart.configure_axes().light_grid_style(BLACK.mix(0.15)).max_light_lines(3).draw()?;
-
     chart
+        .configure_axes()
+        .light_grid_style(ShapeStyle::from(BLACK.mix(0.15)).stroke_width(scale_factor))
+        .max_light_lines(3)
+        .label_style((font, 10 * scale_factor))
+        .draw()?;
+
+    {
+        // Draw the planet
+        let resolution_lines_of_longitude = 10_000; // planet_radius as i32;
+        let lines_of_longitude_count = 2000;
+        let t = (0..=resolution_lines_of_longitude).map(|t| t as f64 / (resolution_lines_of_longitude as f64) * std::f64::consts::TAU);
+        let y = t.clone().map(|t| planet_radius * t.sin());
+        let z = t.map(|t| planet_radius * t.cos());
+        for i in 0..lines_of_longitude_count {
+            let lon = i as f64 / (lines_of_longitude_count as f64) * std::f64::consts::PI;
+            let x = z.clone().map(|z| z * lon.sin());
+            let z = z.clone().map(|z| z * lon.cos());
+            let iter = x.zip(y.clone()).zip(z).map(|((x, y), z)| (x, y, z));
+            chart.draw_series(LineSeries::new(iter, ShapeStyle::from(BLACK.mix(0.3)).stroke_width((scale_factor / 4).max(1))))?;
+        }
+    }
+
+    // Draw the paths
+    for i in (0..data.len()).rev() {
+        if data[i].is_empty() {
+            continue;
+        }
+        chart.draw_series(LineSeries::new(
+            (0..data[i].len()).map(|t| {
+                let point = &data[i][t];
+                let lat = point.latitude.to_radians();
+                let lon = point.longitude.to_radians();
+                let (x, y, z) = (planet_radius * lat.cos() * lon.cos(), planet_radius * lat.cos() * lon.sin(), planet_radius * lat.sin());
+                (y, z, x)
+            }),
+            ShapeStyle::from(RGBAColor(data[i][0].colour.r(), data[i][0].colour.g(), data[i][0].colour.b(), data[i][0].colour.a() as f64 / 255.0)),
+        ))?;
+    }
+
+    /*chart
         .draw_series(
             SurfaceSeries::xoz(
-                (-100..100).map(|f| f as f64 / 100.0 * (settings.planet_radius * 1.1)),
-                (-100..100).map(|f| f as f64 / 100.0 * (settings.planet_radius * 1.1)),
+                (-100..100).map(|f| f as f64 / 100.0 * (radius * 1.1)),
+                (-100..100).map(|f| f as f64 / 100.0 * (radius * 1.1)),
                 |x, z| {
-                    let y_2 = settings.planet_radius * settings.planet_radius - (x * x + z * z);
+                    let y_2 = radius * radius - (x * x + z * z);
                     if y_2 < 0.0 {
                         0.0
                     } else {
@@ -135,10 +178,10 @@ fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> R
     chart
         .draw_series(
             SurfaceSeries::xoz(
-                (-100..100).map(|f| f as f64 / 100.0 * (settings.planet_radius * 1.1)),
-                (-100..100).map(|f| f as f64 / 100.0 * (settings.planet_radius * 1.1)),
+                (-100..100).map(|f| f as f64 / 100.0 * (radius * 1.1)),
+                (-100..100).map(|f| f as f64 / 100.0 * (radius * 1.1)),
                 |x, z| {
-                    let y_2 = settings.planet_radius * settings.planet_radius - (x * x + z * z);
+                    let y_2 = radius * radius - (x * x + z * z);
                     if y_2 < 0.0 {
                         0.0
                     } else {
@@ -149,17 +192,17 @@ fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> R
             .style(BLUE.mix(0.2).filled()),
         )?
         .label("Surface")
-        .legend(|(x, y)| Rectangle::new([(x + 5, y - 5), (x + 15, y + 5)], BLUE.mix(0.5).filled()));
+        .legend(|(x, y)| Rectangle::new([(x + 5, y - 5), (x + 15, y + 5)], BLUE.mix(0.5).filled()));*/
 
-    chart
-        .draw_series(LineSeries::new(
-            (-100..100)
-                .map(|y| y as f64 / 100.0 * (settings.planet_radius * 1.1))
-                .map(|y| ((settings.planet_radius * 1.1) * (y * 10.0).sin(), y, (settings.planet_radius * 1.1) * (y * 10.0).cos())),
-            &BLACK,
-        ))?
-        .label("Line")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
+    /*chart
+    .draw_series(LineSeries::new(
+        (-100..100)
+            .map(|y| y as f64 / 100.0 * (radius * 1.1))
+            .map(|y| ((radius * 1.1) * (y * 10.0).sin(), y, (radius * 1.1) * (y * 10.0).cos())),
+        &BLACK,
+    ))?
+    .label("Line")
+    .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));*/
 
     chart.configure_series_labels().border_style(BLACK).draw()?;
 
