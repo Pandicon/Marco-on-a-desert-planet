@@ -8,6 +8,7 @@ use crate::{data, message_passers, settings, simulator};
 pub enum WindowToShow {
     LatitudeVsTimeGraph,
     LongitudeVsTimeGraph,
+    Nothing,
 }
 
 pub struct Application {
@@ -52,14 +53,28 @@ impl eframe::App for Application {
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     ui.selectable_value(&mut self.window_to_show, WindowToShow::LatitudeVsTimeGraph, "Graph of latitude vs time");
                     ui.selectable_value(&mut self.window_to_show, WindowToShow::LongitudeVsTimeGraph, "Graph of longitude vs time");
+                    ui.selectable_value(&mut self.window_to_show, WindowToShow::Nothing, "Nothing");
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if self.calculation_stage == message_passers::CalculationStage::End {
-                        if ui.button("Recalculate").clicked() {
-                            self.recalculate();
+                    match self.calculation_stage {
+                        message_passers::CalculationStage::End => {
+                            if ui.button("Recalculate").clicked() {
+                                self.recalculate();
+                            }
                         }
-                    } else {
-                        ui.add_enabled(false, egui::Button::new(self.calculation_stage.as_ref()));
+                        message_passers::CalculationStage::Plots | message_passers::CalculationStage::Start => {
+                            ui.add_enabled(false, egui::Button::new(self.calculation_stage.as_ref()));
+                        }
+                        message_passers::CalculationStage::Points => {
+                            ui.add_enabled(
+                                false,
+                                egui::Button::new(format!(
+                                    "{} (~{:.5}%)",
+                                    self.calculation_stage.as_ref(),
+                                    self.data.values().map(|v| v.len()).sum::<usize>() as f32 / ((self.settings.points_to_show * self.settings.velocities_count) as f32) * 100.0
+                                )),
+                            );
+                        }
                     }
                     if ui.button("Settings").clicked() {
                         self.windows_opened.settings = true;
@@ -71,6 +86,7 @@ impl eframe::App for Application {
         egui::CentralPanel::default().show(ctx, |ui| match self.window_to_show {
             WindowToShow::LatitudeVsTimeGraph => self.render_latitude_vs_time_graph(ui),
             WindowToShow::LongitudeVsTimeGraph => self.render_longitude_vs_time_graph(ui),
+            WindowToShow::Nothing => {}
         });
         ctx.request_repaint();
     }
