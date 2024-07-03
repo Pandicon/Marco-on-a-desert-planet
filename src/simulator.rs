@@ -52,7 +52,7 @@ pub fn recalculate_simulation(settings: settings::Settings, sender: mpsc::Sender
 
             // Only move Marco when the star is above his horizon
             if marco_to_sun.dot(&marco_positions[i]) >= 0.0 {
-                let rotation_axis = (marco_positions[i].normalize().cross(&marco_to_sun)).normalize() * (marco_vel / 1000.0 * settings.timestep) / settings.planet_radius;
+                let rotation_axis = (marco_positions[i].normalize().cross(&sun_pos_norm)).normalize() * (marco_vel / 1000.0 * settings.timestep) / settings.planet_radius;
                 let rotation_quaternion = nalgebra::UnitQuaternion::new(rotation_axis);
 
                 marco_positions[i] = rotation_quaternion * marco_positions[i];
@@ -99,14 +99,14 @@ pub fn recalculate_simulation(settings: settings::Settings, sender: mpsc::Sender
 fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> Result<(), Box<dyn std::error::Error>> {
     use plotters::prelude::*;
 
-    let scale_factor = 20;
+    let scale_factor = settings.image_scale_factor;
     let font = "sans";
 
     let planet_radius = settings.planet_radius;
 
     let out_file_name = "plotters-doc-data/3d-plot.png";
 
-    let area = BitMapBackend::new(out_file_name, (1024 * scale_factor, 760 * scale_factor)).into_drawing_area();
+    let area = BitMapBackend::new(out_file_name, ((1024.0 * scale_factor) as u32, (760.0 * scale_factor) as u32)).into_drawing_area();
 
     area.fill(&WHITE)?;
 
@@ -115,7 +115,7 @@ fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> R
 
     let mut chart =
         ChartBuilder::on(&area)
-            .caption("Marco on a desert planet", (font, 20 * scale_factor))
+            .caption("Marco on a desert planet", (font, 20.0 * scale_factor))
             .build_cartesian_3d(x_axis.clone(), -(planet_radius * 1.1)..(planet_radius * 1.1), z_axis.clone())?;
 
     chart.with_projection(|mut pb| {
@@ -126,9 +126,9 @@ fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> R
 
     chart
         .configure_axes()
-        .light_grid_style(ShapeStyle::from(BLACK.mix(0.15)).stroke_width(scale_factor))
+        .light_grid_style(ShapeStyle::from(BLACK.mix(0.15)).stroke_width(scale_factor as u32))
         .max_light_lines(3)
-        .label_style((font, 10 * scale_factor))
+        .label_style((font, 10.0 * scale_factor))
         .draw()?;
 
     {
@@ -143,7 +143,7 @@ fn generate_image(data: Vec<Vec<data::Data>>, settings: settings::Settings) -> R
             let x = z.clone().map(|z| z * lon.sin());
             let z = z.clone().map(|z| z * lon.cos());
             let iter = x.zip(y.clone()).zip(z).map(|((x, y), z)| (x, y, z));
-            chart.draw_series(LineSeries::new(iter, ShapeStyle::from(BLACK.mix(0.3)).stroke_width((scale_factor / 4).max(1))))?;
+            chart.draw_series(LineSeries::new(iter, ShapeStyle::from(BLACK.mix(0.3)).stroke_width((scale_factor / 4.0).max(1.0) as u32)))?;
         }
     }
 

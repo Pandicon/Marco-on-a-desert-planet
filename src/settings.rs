@@ -2,6 +2,7 @@
 pub struct Settings {
     pub recalculate_on_change: bool,
     pub generate_image: bool,
+    pub image_scale_factor: f64,
 
     pub marco_min_velocity: f64,
     pub marco_max_velocity: f64,
@@ -26,6 +27,7 @@ impl Default for Settings {
         Self {
             recalculate_on_change: false,
             generate_image: true,
+            image_scale_factor: 20.0,
 
             marco_min_velocity: 0.5 / 3.6,
             marco_max_velocity: 15.0 / 3.6,

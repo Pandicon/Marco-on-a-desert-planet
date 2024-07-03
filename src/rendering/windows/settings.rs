@@ -10,7 +10,6 @@ impl application::Application {
         egui::Window::new("Settings").open(&mut opened).show(ctx, |ui| {
 			let mut anything_changed = false;
             ui.checkbox(&mut self.settings.recalculate_on_change, "Recalculate on change").on_hover_text("If this option is enabled the simulation will be recalculated every time any of the parameters changes. Can be great for playing with starting values, but can be computationally expensive and therefore make the application run quite slow.");
-			anything_changed |= ui.checkbox(&mut self.settings.generate_image, "Generate the path image").on_hover_text("The image is really great for visualisation, but takes a while to generate which is not great when playing with the parameters.").changed();
 			ui.separator();
 			ui.heading("Marco parameters");
 			ui.horizontal(|ui| {
@@ -78,6 +77,15 @@ impl application::Application {
 				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.points_to_show)).changed();
 				ui.label("Number of points to show in the graph per simulated velocity (approximate value, usually ± 1)");
 			});
+			ui.separator();
+			ui.heading("Image options");
+			anything_changed |= ui.checkbox(&mut self.settings.generate_image, "Generate the path image").on_hover_text("The image is really great for visualisation, but takes a while to generate which is not great when playing with the parameters.").changed();
+			ui.horizontal(|ui| {
+				anything_changed |= ui.add(egui::DragValue::new(&mut self.settings.image_scale_factor)).changed();
+				self.settings.image_scale_factor = self.settings.image_scale_factor.max(0.01);
+				ui.label("Image scale factor").on_hover_text("This sets the resolution of the image, the default is 1024 by 760 pixels. This default is then multiplied on both of these axes by the scale factor.");
+			});
+
 			if self.settings.recalculate_on_change && anything_changed {
 				self.recalculate();
 			}
